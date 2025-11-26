@@ -1,5 +1,5 @@
 /**
- * Debug Utility System for Image Transformation Tracker
+ * Debug Utility System for Image Conversion Tracker
  * Provides comprehensive debugging capabilities including:
  * - Structured logging with levels
  * - Performance monitoring

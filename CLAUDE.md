@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Image Transformation Tracker** is a vanilla JavaScript web application that provides a node-based visual workflow editor for constructing AI-powered image processing pipelines. The application uses the Replicate API (Nano Banana model) for image generation and is built without framework dependencies.
+**Image Conversion Tracker** is a vanilla JavaScript web application that provides a node-based visual workflow editor for constructing AI-powered image processing pipelines. The application uses the Replicate API (Nano Banana model) for image generation and is built without framework dependencies.
 
 **Technology Stack**: Vanilla JavaScript (ES6+), HTML5, Tailwind CSS (CDN), Vis.js (network visualization)
 

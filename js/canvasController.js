@@ -2277,6 +2277,11 @@ class CanvasController {
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
 
+            // Use the displayed dimensions (not the scaled canvas resolution)
+            // so that click positions match the coordinates used in renderMiniMap().
+            const displayWidth = rect.width || parseFloat(canvas.style.width) || canvas.width;
+            const displayHeight = rect.height || parseFloat(canvas.style.height) || canvas.height;
+
             // Convert mini map coordinates to network coordinates
             const bounds = this.getNetworkBounds();
             if (!bounds) return;
@@ -2294,13 +2299,13 @@ class CanvasController {
             const boundsHeight = paddedBounds.maxY - paddedBounds.minY;
 
             // Calculate scale (same as in renderMiniMap)
-            const scaleX = canvas.width / boundsWidth;
-            const scaleY = canvas.height / boundsHeight;
+            const scaleX = displayWidth / boundsWidth;
+            const scaleY = displayHeight / boundsHeight;
             const scale = Math.min(scaleX, scaleY);
 
             // Calculate offset (same as in renderMiniMap)
-            const offsetX = (canvas.width - boundsWidth * scale) / 2;
-            const offsetY = (canvas.height - boundsHeight * scale) / 2;
+            const offsetX = (displayWidth - boundsWidth * scale) / 2;
+            const offsetY = (displayHeight - boundsHeight * scale) / 2;
 
             // Convert mini map coordinates back to network coordinates
             const networkX = paddedBounds.minX + (clickX - offsetX) / scale;
