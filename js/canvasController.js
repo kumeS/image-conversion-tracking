@@ -1218,184 +1218,34 @@ class CanvasController {
         const edge = workflowEngine.edges.get(edgeId);
         if (!edge) return;
 
-        // Clean up any existing dialog
+        // Remove any legacy prompt dialog to keep IDs unique
         const existingDialog = document.getElementById('edgePromptDialog');
         if (existingDialog) {
             existingDialog.remove();
         }
 
-        // Check if edge already has a prompt
-        const hasPrompt = edge.prompt && edge.prompt.trim() !== '';
-        const currentPrompt = edge.prompt || '';
+        const modal = document.getElementById('edgePromptModal');
+        if (!modal) return;
 
-        // Create prompt menu dialog
-        const dialog = document.createElement('div');
-        dialog.id = 'edgePromptDialog';
-        dialog.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
-        dialog.innerHTML = `
-            <div class="bg-gray-900 rounded-xl p-6 border border-white/10 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-semibold text-white">変換プロンプト設定</h3>
-                    ${hasPrompt ? '<span class="px-2 py-1 bg-purple-600 text-white text-xs rounded-full">✓ 設定済み</span>' : ''}
-                </div>
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
-                        <button id="manualPrompt" class="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg text-center text-white transition-colors">
-                            <i class="fas fa-keyboard text-2xl mb-2"></i>
-                            <div>手動入力</div>
-                        </button>
-                        <button id="llmPrompt" class="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg text-center text-white transition-colors">
-                            <i class="fas fa-robot text-2xl mb-2"></i>
-                            <div>AI生成</div>
-                        </button>
-                    </div>
+        modal.dataset.edgeId = edgeId;
 
-                    <div id="promptContent" class="${hasPrompt ? '' : 'hidden'}">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-300 mb-2">変換プロンプト</label>
-                                <textarea id="promptText" rows="6" placeholder="変換プロンプトを入力してください..."
-                                          class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400">${currentPrompt}</textarea>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-300 mb-2">アスペクト比</label>
-                                <select id="promptAspectRatioDialog" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500">
-                                    <option value="1:1">1:1 (正方形)</option>
-                                    <option value="4:3">4:3 (標準)</option>
-                                    <option value="3:4">3:4 (縦標準)</option>
-                                    <option value="16:9">16:9 (ワイド)</option>
-                                    <option value="9:16">9:16 (縦長)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex space-x-3">
-                        <button id="cancelPrompt" class="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors">
-                            キャンセル
-                        </button>
-                        <button id="savePrompt" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors">
-                            保存
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(dialog);
-
-        // Auto show prompt content if edge already has a prompt
-        const promptTextArea = document.getElementById('promptText');
-        const aspectRatioSelect = document.getElementById('promptAspectRatioDialog');
-
-        // Ensure textarea is enabled and ready for input
-        if (promptTextArea) {
-            promptTextArea.disabled = false;
+        const promptText = document.getElementById('promptText');
+        if (promptText) {
+            promptText.disabled = false;
+            promptText.value = edge.prompt || '';
         }
 
-        // Load existing aspect ratio if available
-        if (aspectRatioSelect && edge.aspectRatio) {
-            aspectRatioSelect.value = edge.aspectRatio;
+        const promptModel = document.getElementById('promptModel');
+        if (promptModel) {
+            promptModel.value = edge.model || config.get('imageModel') || 'google/nano-banana';
         }
 
-        if (hasPrompt) {
-            document.getElementById('promptContent').classList.remove('hidden');
+        const promptAspectRatio = document.getElementById('promptAspectRatio');
+        if (promptAspectRatio) {
+            promptAspectRatio.value = edge.aspectRatio || config.get('aspectRatio') || '1:1';
         }
 
-        // Setup handlers
-        document.getElementById('manualPrompt').onclick = () => {
-            document.getElementById('promptContent').classList.remove('hidden');
-            if (promptTextArea) {
-                promptTextArea.disabled = false;
-                promptTextArea.focus();
-            }
-        };
-
-        document.getElementById('llmPrompt').onclick = async () => {
-            // Generate with LLM
-            const sourceNode = workflowEngine.nodes.get(edge.source);
-            if (!sourceNode || !sourceNode.images || sourceNode.images.length === 0) {
-                alert('Source node must have images for AI generation');
-                return;
-            }
-
-            try {
-                document.getElementById('promptContent').classList.remove('hidden');
-                promptTextArea.value = 'Generating with AI...';
-                promptTextArea.disabled = true;
-
-                // Get current image from source node
-                const currentIndex = sourceNode.currentIndex || 0;
-                const sourceImage = sourceNode.images[currentIndex];
-                const imageUrl = sourceImage.url;
-
-                // Call LLM service to generate prompt
-                const generatedPrompt = await llmService.generatePrompt(
-                    imageUrl,
-                    'artistic', // Default style
-                    'Creative image transformation',
-                    null // Use default model
-                );
-
-                promptTextArea.value = generatedPrompt;
-                promptTextArea.disabled = false;
-            } catch (error) {
-                console.error('Failed to generate prompt:', error);
-
-                // Check if error is due to missing API key
-                if (error.message && error.message.includes('APIキーが設定されていません')) {
-                    // Use default prompt instead of showing error
-                    const defaultPrompt = 'Transform the image creatively';
-                    promptTextArea.value = defaultPrompt;
-                    promptTextArea.disabled = false;
-
-                    // Show informative message above the textarea
-                    const warningDiv = document.createElement('div');
-                    warningDiv.className = 'mb-2 p-3 bg-yellow-900/30 border border-yellow-600/50 rounded-lg text-yellow-200 text-sm';
-                    warningDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>IONet APIが設定されていないため、デフォルトプロンプトを使用します。設定画面からAPIキーを入力すると、AI生成が利用できます。';
-
-                    // Insert warning before promptContent
-                    const promptContent = document.getElementById('promptContent');
-                    if (promptContent && promptContent.firstChild) {
-                        promptContent.insertBefore(warningDiv, promptContent.firstChild);
-                    }
-                } else {
-                    // Other errors - show as before
-                    promptTextArea.value = '';
-                    promptTextArea.disabled = false;
-                    alert('プロンプトの生成に失敗しました: ' + error.message);
-                }
-            }
-        };
-
-        document.getElementById('cancelPrompt').onclick = () => {
-            document.body.removeChild(dialog);
-        };
-
-        document.getElementById('savePrompt').onclick = () => {
-            // Re-get the textarea and aspect ratio to ensure we have the latest references
-            const currentPromptTextArea = document.getElementById('promptText');
-            const currentAspectRatioSelect = document.getElementById('promptAspectRatioDialog');
-            const promptText = currentPromptTextArea ? currentPromptTextArea.value.trim() : '';
-            const aspectRatio = currentAspectRatioSelect ? currentAspectRatioSelect.value : '1:1';
-
-            console.log('Save prompt clicked, value:', promptText, 'aspectRatio:', aspectRatio);
-
-            if (promptText) {
-                workflowEngine.updateEdge(edgeId, {
-                    prompt: promptText,
-                    aspectRatio: aspectRatio
-                });
-                console.log(`Updated edge ${edgeId} with prompt: ${promptText}, aspectRatio: ${aspectRatio}`);
-                // Force update the edge visualization
-                const updatedEdge = workflowEngine.edges.get(edgeId);
-                if (updatedEdge) {
-                    this.updateEdge(updatedEdge);
-                }
-                document.body.removeChild(dialog);
-            } else {
-                alert('プロンプトを入力してください。');
-            }
-        };
+        modal.classList.remove('hidden');
     }
 
     duplicateNode(nodeId) {
